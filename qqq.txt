@@ -1,0 +1,98 @@
+#include<opencv2/opencv.hpp>
+#include<opencv2/highgui/highgui.hpp>
+#include<iostream>
+using namespace std;
+cv::Point getcenterPoint(cv::Rect rect)
+{
+	cv::Point cpt;
+	cpt.x=rect.x+cvRound(rect.width/2.0);
+	cpt.y=rect.y+cvRound(rect.height/2.0);
+	return cpt;
+
+}
+int main()
+{
+	cv::CascadeClassifier mFaceDetector;
+	cv::CascadeClassifier mEyeDetector;
+	cv::CascadeClassifier mMouthDetector;
+	cv::CascadeClassifier mNoseDetector;
+	mFaceDetector.load("haarcascade_frontalface_default.xml");
+	mEyeDetector.load("haarcascade_mcs_eyepair_big.xml");
+	mMouthDetector.load("haarcascade_mcs_nose.xml");
+	mNoseDetector.load("haarcascade_mcs_mouth.xml");
+	cv::Mat frame;
+	cv::Mat mElabImage;
+    cv::VideoCapture cap(0);
+	if(!cap.isOpened())
+	{
+	        cout<<"can't open camera";
+		return -1;
+	}
+	while(true)
+	{
+		cap>>frame;
+		frame.copyTo(mElabImage);
+		float scaleFactor = 3.0f;
+		vector< cv::Rect > faceVec;
+		mFaceDetector.detectMultiScale(frame, faceVec, scaleFactor);
+		int i, j;
+		for (i = 0; i<faceVec.size(); i++)
+		{
+			cv::rectangle(mElabImage, faceVec[i], CV_RGB(255, 0, 0), 2);
+			cv::Mat face = frame(faceVec[i]);
+			//检测眼睛  
+			vector< cv::Rect > eyeVec;
+			mEyeDetector.detectMultiScale(face, eyeVec);
+
+			for (j = 0; j<eyeVec.size(); j++)
+			{
+				cv::Rect rect = eyeVec[j];
+				rect.x += faceVec[i].x;
+				rect.y += faceVec[i].y;
+
+				cv::rectangle(mElabImage, rect, CV_RGB(0, 255, 0), 2);
+			}
+			//检测鼻子  
+			vector< cv::Rect > noseVec;
+
+			mNoseDetector.detectMultiScale(face, noseVec, 3);
+
+			for (j = 0; j<noseVec.size(); j++)
+			{
+				cv::Rect rect = noseVec[j];
+				rect.x += faceVec[i].x;
+				rect.y += faceVec[i].y;
+
+				cv::rectangle(mElabImage, rect, CV_RGB(0, 0, 255), 2);
+			}
+
+			//检测嘴巴  
+			vector< cv::Rect > mouthVec;
+			cv::Rect halfRect = faceVec[i];
+			halfRect.height /= 2;
+			halfRect.y += halfRect.height;
+
+			cv::Mat halfFace = frame(halfRect);
+
+			mMouthDetector.detectMultiScale(halfFace, mouthVec, 3);
+
+			for (j = 0; j<mouthVec.size(); j++)
+			{
+				cv::Rect rect = mouthVec[j];
+				rect.x += halfRect.x;
+				rect.y += halfRect.y;
+
+				cv::rectangle(mElabImage, rect, CV_RGB(255, 255, 255), 2);
+			}
+			cv::Point point_center;
+			point_center=getcenterPoint(faceVec[i]);
+			cout<<"point_center"<<point_center<<endl;
+		}
+		cv::imshow("Extracted Frame", mElabImage);
+		cv::waitKey(20);
+	}
+
+	return 1;
+
+}
+
